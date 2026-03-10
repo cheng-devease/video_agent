@@ -97,7 +97,11 @@ class WorkflowOrchestrator:
             state.update_status(WorkflowStatus.GENERATING_SCENES, "Generating scene images", "SceneGenerator")
             state.set_progress(25)
 
-            scene_images = await self.scene_generator.execute(creative_plan, product_images)
+            scene_images = await self.scene_generator.execute(
+                creative_plan=creative_plan,
+                product_images=product_images,
+                product_info=product_info,
+            )
             state.scene_images = scene_images
             self.state_manager.save_state(state)
 

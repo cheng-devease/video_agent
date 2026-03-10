@@ -113,10 +113,11 @@ class QualityEvaluator(BaseAgent):
         output_dir.mkdir(parents=True, exist_ok=True)
 
         frames = []
+        duration = self._get_video_duration(video_path)
+        timestamps = self._select_keyframe_timestamps(duration=duration, num_frames=num_frames)
 
         # 使用ffmpeg提取帧
-        for i in range(num_frames):
-            timestamp = i * 1.5  # 每1.5秒一帧
+        for i, timestamp in enumerate(timestamps):
             output_path = str(output_dir / f"{Path(video_path).stem}_frame_{i}.jpg")
 
             cmd = [
@@ -134,6 +135,47 @@ class QualityEvaluator(BaseAgent):
                 self.logger.warning(f"Failed to extract frame {i}: {e}")
 
         return frames
+
+    def _get_video_duration(self, video_path: str) -> float:
+        import subprocess
+
+        cmd = [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            video_path,
+        ]
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            return max(float(result.stdout.strip()), 0.0)
+        except Exception as e:
+            self.logger.warning(f"Failed to probe video duration: {e}")
+            return 0.0
+
+    def _select_keyframe_timestamps(self, duration: float, num_frames: int = 3) -> List[float]:
+        if num_frames <= 0:
+            return []
+
+        if duration > 0:
+            ending = max(duration - 0.1, 0.0)
+            if num_frames == 1:
+                return [0.0]
+            if num_frames == 2:
+                return [0.0, round(ending, 3)]
+
+            timestamps = [
+                0.0,
+                duration / 2,
+                ending,
+            ]
+            return [round(timestamp, 3) for timestamp in timestamps[:num_frames]]
+
+        return [round(i * 1.5, 3) for i in range(num_frames)]
 
     async def _evaluate_video(
         self,
