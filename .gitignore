@@ -41,3 +41,4 @@ output/*
 htmlcov/
 dist/
 build/
+logs/
