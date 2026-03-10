@@ -131,6 +131,7 @@ class WorkflowOrchestrator:
                     prompts=prompts,
                     reference_image=scene_images[i] if i < len(scene_images) else scene_images[0],
                     duration=settings.video_default_duration,
+                    reference_images=product_images,
                 )
                 all_videos.extend(videos)
                 state.set_progress(45 + (i + 1) * 10)
@@ -166,8 +167,14 @@ class WorkflowOrchestrator:
             state.update_status(WorkflowStatus.EDITING, "Editing video", "VideoEditor")
             state.set_progress(80)
 
-            # 可选的视频编辑
-            edited_video_path = best_video_path  # 暂时跳过编辑
+            selected_video = next(
+                (video for video in all_videos if video.video_path == best_video_path),
+                None,
+            )
+            if selected_video:
+                edited_video_path = await self.video_editor.execute(selected_video)
+            else:
+                edited_video_path = best_video_path
 
             # ===== 阶段8: 品牌合成 =====
             logger.info(f"[{workflow_id}] Stage 8: Brand Composition")

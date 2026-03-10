@@ -78,6 +78,7 @@ class EvaluationResult:
     ranking: int = 0
     comments: str = ""
     is_best: bool = False
+    metadata: Dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -87,6 +88,7 @@ class EvaluationResult:
             "ranking": self.ranking,
             "comments": self.comments,
             "is_best": self.is_best,
+            "metadata": self.metadata,
         }
 
 

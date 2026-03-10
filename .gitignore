@@ -1,0 +1,43 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.local
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
+
+# Logs
+logs/*
+!logs/.gitkeep
+*.log
+
+# Runtime state and cache
+state/*
+!state/.gitkeep
+cache/*
+!cache/.gitkeep
+
+# Generated media and temporary files
+temp/*
+!temp/.gitkeep
+output/*
+!output/.gitkeep
+
+# Coverage and build artifacts
+.coverage
+htmlcov/
+dist/
+build/
