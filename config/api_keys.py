@@ -92,9 +92,9 @@ class APIKeys:
         return {
             "fal_kling": bool(self.fal_api_key),  # fal.ai Kling v3 Pro
             "kling": bool(self.fal_api_key),
-            "sora": bool(self.sora_api_key),
-            "seedance": bool(self.seedance_api_key and self.seedance_api_url),
-            "veo3": bool(self.veo3_api_key and self.veo3_project_id),
+            "sora": bool(self.fal_api_key),
+            "seedance": bool(self.fal_api_key),
+            "veo3": bool(self.fal_api_key),
         }
 
 

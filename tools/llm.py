@@ -111,7 +111,25 @@ class GPT4VisionTool(LLMTool):
     ) -> Dict[str, Any]:
         """分析图片并返回JSON"""
         import json
-        response = await self.analyze_images(image_paths, prompt, system_prompt)
-        json_start = response.find("{")
-        json_end = response.rfind("}") + 1
-        return json.loads(response[json_start:json_end])
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+
+        content = [{"type": "text", "text": prompt}]
+        for path in image_paths:
+            if Path(path).exists():
+                b64 = self._encode_image(path)
+                content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{b64}"}
+                })
+
+        messages.append({"role": "user", "content": content})
+
+        response = await self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            response_format={"type": "json_object"},
+            max_tokens=4096,
+        )
+        return json.loads(response.choices[0].message.content)

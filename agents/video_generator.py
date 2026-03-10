@@ -21,11 +21,8 @@ class VideoGenerator(BaseAgent):
 
         if api_keys.fal_api_key:
             self.apis["kling"] = KlingAPI()
-        if api_keys.sora_api_key or api_keys.openai_api_key:
             self.apis["sora2"] = SoraAPI()
-        if api_keys.seedance_api_key:
             self.apis["seedance"] = SeedanceAPI()
-        if api_keys.veo3_api_key:
             self.apis["veo3"] = Veo3API()
 
     async def execute(
@@ -132,7 +129,7 @@ class VideoGenerator(BaseAgent):
                 negative_prompt=negative_prompt,
                 duration=effective_duration,
             )
-            if model_name == "kling":
+            if additional_params:
                 generate_kwargs["additional_params"] = additional_params
 
             video_path = await api.generate(**generate_kwargs)
