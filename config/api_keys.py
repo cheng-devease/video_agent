@@ -22,7 +22,7 @@ class APIKeys:
     # fal.ai API (推荐，支持多种视频模型)
     fal_api_key: str = ""  # fal.ai API密钥
 
-    # Kling API (如果直接使用可灵官方API)
+    # Kling API (旧的直连方式，保留兼容；当前Kling走 fal.ai)
     kling_api_key: str = ""  # Kling API密钥
     kling_api_url: str = ""  # Kling API URL
 
@@ -91,7 +91,7 @@ class APIKeys:
         """检查哪些视频生成API已配置"""
         return {
             "fal_kling": bool(self.fal_api_key),  # fal.ai Kling v3 Pro
-            "kling": bool(self.kling_api_key and self.kling_api_url),
+            "kling": bool(self.fal_api_key),
             "sora": bool(self.sora_api_key),
             "seedance": bool(self.seedance_api_key and self.seedance_api_url),
             "veo3": bool(self.veo3_api_key and self.veo3_project_id),

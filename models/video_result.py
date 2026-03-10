@@ -25,6 +25,7 @@ class VideoResult:
     generation_time: float = 0.0
     success: bool = True
     error_message: str = ""
+    metadata: Dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -37,6 +38,7 @@ class VideoResult:
             "generation_time": self.generation_time,
             "success": self.success,
             "error_message": self.error_message,
+            "metadata": self.metadata,
         }
 
 

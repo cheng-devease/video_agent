@@ -17,6 +17,7 @@ imageio-ffmpeg>=0.4.9
 
 # Async & HTTP
 aiohttp>=3.9.0
+aiofiles>=23.0.0
 httpx>=0.25.0
 tenacity>=8.2.0
 
@@ -24,6 +25,7 @@ tenacity>=8.2.0
 loguru>=0.7.0
 pyyaml>=6.0
 tiktoken>=0.5.0
+pytest>=8.0.0
 
 # Optional: Cloud Storage
 # boto3>=1.28.0

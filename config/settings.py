@@ -28,6 +28,7 @@ class Settings:
     video_duration_min: int = 4
     video_duration_max: int = 15
     video_default_duration: int = 4
+    video_generation_timeout: int = 600
     video_quality: VideoQuality = VideoQuality.HIGH
     video_aspect_ratio: AspectRatio = AspectRatio.RATIO_16_9
     video_fps: int = 30
