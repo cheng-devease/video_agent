@@ -129,3 +129,19 @@ def test_quality_evaluator_builds_weighted_metadata_and_comments():
     assert evaluation.metadata["weighted_score"] == 18.95
     assert evaluation.metadata["qualified"] is True
     assert evaluation.metadata["consistency_checks"]["shape_structure"] == 5
+
+
+def test_quality_evaluator_prefers_opening_middle_and_ending_timestamps():
+    evaluator = QualityEvaluator()
+
+    timestamps = evaluator._select_keyframe_timestamps(duration=12.0, num_frames=3)
+
+    assert timestamps == [0.0, 6.0, 11.9]
+
+
+def test_quality_evaluator_falls_back_to_fixed_intervals_when_duration_is_missing():
+    evaluator = QualityEvaluator()
+
+    timestamps = evaluator._select_keyframe_timestamps(duration=0.0, num_frames=3)
+
+    assert timestamps == [0.0, 1.5, 3.0]

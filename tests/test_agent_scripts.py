@@ -1,8 +1,8 @@
 import asyncio
 import json
 
-from models.video_result import VideoResult
-from scripts import test_prompt_generator, test_video_editor, test_video_generator
+from models.video_result import EvaluationResult, EvaluationScore, VideoResult
+from scripts import test_prompt_generator, test_quality_evaluator, test_video_editor, test_video_generator
 
 
 def test_prompt_generator_script_main_prints_json(monkeypatch, capsys, tmp_path):
@@ -161,3 +161,70 @@ def test_video_editor_script_main_prints_json(monkeypatch, capsys, tmp_path):
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["edited_video_path"] == "/tmp/edited.mp4"
+
+
+def test_quality_evaluator_script_run_passes_video_results(monkeypatch):
+    calls = []
+
+    class DummyEvaluator:
+        async def execute(self, videos, product_image):
+            calls.append({
+                "videos": videos,
+                "product_image": product_image,
+            })
+            return EvaluationResult(
+                model_name="kling",
+                video_path="/tmp/best.mp4",
+                score=EvaluationScore(
+                    product_consistency=22,
+                    visual_quality=16,
+                    creativity=15,
+                    ad_effectiveness=14,
+                ),
+                comments="Best match",
+                is_best=True,
+                metadata={"weighted_score": 18.7, "qualified": True},
+            )
+
+    monkeypatch.setattr(test_quality_evaluator, "QualityEvaluator", DummyEvaluator)
+
+    result = asyncio.run(
+        test_quality_evaluator.run(
+            product_image="/tmp/product.png",
+            video_paths=["/tmp/a.mp4", "/tmp/b.mp4"],
+            model_names=["sora2", "kling"],
+        )
+    )
+
+    assert result["model_name"] == "kling"
+    assert calls[0]["product_image"] == "/tmp/product.png"
+    assert calls[0]["videos"][0].model_name == "sora2"
+    assert calls[0]["videos"][1].video_path == "/tmp/b.mp4"
+
+
+def test_quality_evaluator_script_main_prints_json(monkeypatch, capsys, tmp_path):
+    product_image = tmp_path / "product.png"
+    video_path = tmp_path / "video.mp4"
+    product_image.write_bytes(b"product")
+    video_path.write_bytes(b"video")
+
+    async def fake_run(**kwargs):
+        assert kwargs["product_image"] == str(product_image)
+        assert kwargs["video_paths"] == [str(video_path)]
+        assert kwargs["model_names"] == ["kling"]
+        return {"model_name": "kling", "video_path": "/tmp/best.mp4", "is_best": True}
+
+    monkeypatch.setattr(test_quality_evaluator, "run", fake_run)
+
+    exit_code = test_quality_evaluator.main([
+        "--product-image",
+        str(product_image),
+        "--video-path",
+        str(video_path),
+        "--model-name",
+        "kling",
+    ])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["video_path"] == "/tmp/best.mp4"
