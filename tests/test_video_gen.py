@@ -85,3 +85,18 @@ def test_other_fal_video_models_use_expected_model_ids_and_payloads(tmp_path):
     assert veo_payload["image_url"].startswith("data:image/png;base64,")
     assert veo_payload["prompt"] == "A cinematic premium reveal"
     assert veo_payload["resolution"] == "1080p"
+
+
+def test_kling_prefers_submit_returned_queue_urls():
+    api = KlingAPI()
+    submit_result = {
+        "request_id": "req_123",
+        "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/req_123/status",
+        "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/req_123",
+    }
+
+    urls = api._resolve_queue_urls(submit_result)
+
+    assert urls["request_id"] == "req_123"
+    assert urls["status_url"] == "https://queue.fal.run/fal-ai/kling-video/requests/req_123/status"
+    assert urls["response_url"] == "https://queue.fal.run/fal-ai/kling-video/requests/req_123"

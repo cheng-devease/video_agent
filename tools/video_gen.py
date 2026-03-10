@@ -60,11 +60,15 @@ class FalVideoGenAPI(VideoGenTool):
         )
 
         async with aiohttp.ClientSession() as session:
-            request_id = await self._submit_request(session, headers, payload)
-            result = await self._wait_for_result(session, headers, request_id)
+            queue_info = await self._submit_request(session, headers, payload)
+            result = await self._wait_for_result(session, headers, queue_info)
             video_url = self._extract_video_url(result)
 
+<<<<<<< HEAD
             output_path = str(self.temp_dir / f"{self.__class__.__name__.lower()}_{request_id}.mp4")
+=======
+            output_path = str(self.temp_dir / f"{self.__class__.__name__.lower()}_{queue_info['request_id']}.mp4")
+>>>>>>> feature/text
             await self._download(session, video_url, output_path)
 
         logger.info(f"{self.__class__.__name__} video saved: {output_path}")
@@ -78,6 +82,7 @@ class FalVideoGenAPI(VideoGenTool):
         duration: int = 4,
         additional_params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
+<<<<<<< HEAD
         params = dict(additional_params or {})
         payload: Dict[str, Any] = {
             self.image_field_name: self._normalize_media_input(params.pop("image", image_path)),
@@ -204,25 +209,20 @@ class KlingAPI(FalVideoGenAPI):
         duration: int = 4,
         additional_params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
+=======
+>>>>>>> feature/text
         params = dict(additional_params or {})
         payload: Dict[str, Any] = {
-            "start_image_url": self._normalize_media_input(params.pop("start_image", image_path)),
+            self.image_field_name: self._normalize_media_input(params.pop("image", image_path)),
+            "prompt": params.pop("prompt", prompt),
             "duration": str(params.pop("duration", duration)),
         }
-
-        prompt_value = params.pop("prompt", prompt)
-        multi_prompt = params.get("multi_prompt")
-        if prompt_value:
-            payload["prompt"] = prompt_value
-        if multi_prompt:
-            payload["multi_prompt"] = multi_prompt
-        if not payload.get("prompt") and not payload.get("multi_prompt"):
-            raise ValueError("Kling requires either 'prompt' or 'multi_prompt'")
 
         negative_prompt_value = params.pop("negative_prompt", negative_prompt)
         if negative_prompt_value:
             payload["negative_prompt"] = negative_prompt_value
 
+<<<<<<< HEAD
         if "end_image_url" in params or "end_image" in params:
             payload["end_image_url"] = self._normalize_media_input(
                 params.pop("end_image_url", params.pop("end_image", None))
@@ -262,6 +262,218 @@ class KlingAPI(FalVideoGenAPI):
             if value is not None:
                 payload[key] = self._normalize_extra_value(key, value)
 
+=======
+>>>>>>> feature/text
+        for key, value in params.items():
+            if value is not None:
+                payload[key] = self._normalize_extra_value(key, value)
+
+        return payload
+
+<<<<<<< HEAD
+=======
+    def _normalize_extra_value(self, key: str, value: Any) -> Any:
+        if key in {"image_url", "start_image_url", "end_image_url", "tail_image_url", "video_url"}:
+            return self._normalize_media_input(value)
+        if key == "reference_image_urls" and isinstance(value, list):
+            return [self._normalize_media_input(item) for item in value]
+        if key == "elements" and isinstance(value, list):
+            return self._normalize_elements(value)
+        return value
+
+    def _normalize_elements(self, elements: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        normalized = []
+        for element in elements:
+            item = dict(element)
+            image_input = item.pop("image_url", None) or item.pop("image", None) or item.pop("image_path", None)
+            if image_input is not None:
+                item["image_url"] = self._normalize_media_input(image_input)
+            normalized.append(item)
+        return normalized
+>>>>>>> feature/text
+
+class SoraAPI(FalVideoGenAPI):
+    """Sora 2 视频生成 API via fal.ai"""
+
+<<<<<<< HEAD
+    model_id = "fal-ai/sora-2/image-to-video"
+
+
+class SeedanceAPI(FalVideoGenAPI):
+    """Seedance 视频生成 API via fal.ai"""
+
+=======
+        media_str = str(media_input)
+        if media_str.startswith(("http://", "https://", "data:")):
+            return media_str
+
+        path = Path(media_str)
+        if not path.exists():
+            raise FileNotFoundError(f"Media file not found: {media_str}")
+
+        mime_type, _ = mimetypes.guess_type(path.name)
+        mime_type = mime_type or "application/octet-stream"
+        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+        return f"data:{mime_type};base64,{encoded}"
+
+    async def _submit_request(self, session, headers, payload: Dict[str, Any]) -> Dict[str, str]:
+        async with session.post(f"{self.queue_base_url}/{self.model_id}", headers=headers, json=payload) as resp:
+            result = await resp.json()
+            if resp.status >= 400:
+                raise RuntimeError(f"{self.__class__.__name__} submit failed: {result}")
+
+        return self._resolve_queue_urls(result)
+
+    def _resolve_queue_urls(self, submit_result: Dict[str, Any]) -> Dict[str, str]:
+        request_id = submit_result.get("request_id")
+        if not request_id:
+            raise RuntimeError(f"{self.__class__.__name__} submit missing request_id: {submit_result}")
+        return {
+            "request_id": request_id,
+            "status_url": submit_result.get(
+                "status_url",
+                f"{self.queue_base_url}/{self.model_id}/requests/{request_id}/status",
+            ),
+            "response_url": submit_result.get(
+                "response_url",
+                f"{self.queue_base_url}/{self.model_id}/requests/{request_id}",
+            ),
+        }
+
+    async def _wait_for_result(self, session, headers, queue_info: Dict[str, str]) -> Dict[str, Any]:
+        import time
+
+        start = time.time()
+        while time.time() - start < self.timeout:
+            async with session.get(queue_info["status_url"], headers=headers) as resp:
+                result = await resp.json(content_type=None)
+                status = result.get("status")
+                if resp.status >= 400:
+                    raise RuntimeError(f"{self.__class__.__name__} status check failed: {result}")
+                if status == "COMPLETED":
+                    return await self._get_result(session, headers, queue_info["response_url"])
+                if status in {"FAILED", "ERROR", "CANCELLED"}:
+                    raise RuntimeError(f"{self.__class__.__name__} generation failed: {result}")
+            await asyncio.sleep(5)
+        raise TimeoutError(f"{self.__class__.__name__} generation timeout")
+
+    async def _get_result(self, session, headers, response_url: str) -> Dict[str, Any]:
+        async with session.get(response_url, headers=headers) as resp:
+            result = await resp.json(content_type=None)
+            if resp.status >= 400:
+                raise RuntimeError(f"{self.__class__.__name__} result fetch failed: {result}")
+        return result
+
+    def _extract_video_url(self, result: Dict[str, Any]) -> str:
+        response = result.get("response", result)
+
+        if isinstance(response, dict):
+            if isinstance(response.get("video"), dict) and response["video"].get("url"):
+                return response["video"]["url"]
+            if response.get("video_url"):
+                return response["video_url"]
+            if isinstance(response.get("videos"), list) and response["videos"]:
+                first = response["videos"][0]
+                if isinstance(first, dict) and first.get("url"):
+                    return first["url"]
+
+        raise RuntimeError(f"{self.__class__.__name__} result missing video URL: {result}")
+
+    async def _download(self, session, url: str, output_path: str):
+        async with session.get(url) as resp:
+            if resp.status >= 400:
+                raise RuntimeError(f"Failed to download {self.__class__.__name__} video: {url}")
+            with open(output_path, "wb") as f:
+                f.write(await resp.read())
+
+
+class KlingAPI(FalVideoGenAPI):
+    """Kling 视频生成 API via fal.ai"""
+
+    model_id = "fal-ai/kling-video/v3/pro/image-to-video"
+
+    def _build_payload(
+        self,
+        image_path: str,
+        prompt: str,
+        negative_prompt: str = "",
+        duration: int = 4,
+        additional_params: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        params = dict(additional_params or {})
+        payload: Dict[str, Any] = {
+            "start_image_url": self._normalize_media_input(params.pop("start_image", image_path)),
+            "duration": str(params.pop("duration", duration)),
+        }
+
+        prompt_value = params.pop("prompt", prompt)
+        multi_prompt = params.get("multi_prompt")
+        if prompt_value:
+            payload["prompt"] = prompt_value
+        if multi_prompt:
+            payload["multi_prompt"] = multi_prompt
+        if not payload.get("prompt") and not payload.get("multi_prompt"):
+            raise ValueError("Kling requires either 'prompt' or 'multi_prompt'")
+
+        negative_prompt_value = params.pop("negative_prompt", negative_prompt)
+        if negative_prompt_value:
+            payload["negative_prompt"] = negative_prompt_value
+
+        if "end_image_url" in params or "end_image" in params:
+            payload["end_image_url"] = self._normalize_media_input(
+                params.pop("end_image_url", params.pop("end_image", None))
+            )
+
+        legacy_reference_images = []
+        if "reference_image_urls" in params:
+            legacy_reference_images = list(params.pop("reference_image_urls"))
+        elif "reference_images" in params:
+            legacy_reference_images = list(params.pop("reference_images"))
+
+        if "video_url" in params:
+            payload["video_url"] = self._normalize_media_input(params.pop("video_url"))
+
+        if "elements" in params:
+            payload["elements"] = self._normalize_elements(params.pop("elements"))
+
+        if legacy_reference_images:
+            normalized_legacy_images = [
+                self._normalize_media_input(item)
+                for item in legacy_reference_images
+            ]
+            if payload.get("elements"):
+                first_element = dict(payload["elements"][0])
+                frontal_image = first_element.get("frontal_image_url") or normalized_legacy_images[0]
+                existing_refs = list(first_element.get("reference_image_urls", []))
+                for image in normalized_legacy_images:
+                    if image != frontal_image and image not in existing_refs:
+                        existing_refs.append(image)
+                first_element["frontal_image_url"] = frontal_image
+                first_element["reference_image_urls"] = existing_refs
+                payload["elements"][0] = first_element
+            else:
+                payload["elements"] = [{
+                    "frontal_image_url": normalized_legacy_images[0],
+                    "reference_image_urls": normalized_legacy_images[1:],
+                }]
+
+        for key in (
+            "aspect_ratio",
+            "generate_audio",
+            "voice_ids",
+            "cfg_scale",
+            "shot_type",
+            "camera_control",
+            "advanced_camera_control",
+            "seed",
+            "tail_image_url",
+            "static_mask_url",
+            "dynamic_masks",
+        ):
+            value = params.pop(key, None)
+            if value is not None:
+                payload[key] = self._normalize_extra_value(key, value)
+
         for key, value in params.items():
             if value is not None:
                 payload[key] = self._normalize_extra_value(key, value)
@@ -278,6 +490,7 @@ class SoraAPI(FalVideoGenAPI):
 class SeedanceAPI(FalVideoGenAPI):
     """Seedance 视频生成 API via fal.ai"""
 
+>>>>>>> feature/text
     model_id = "fal-ai/bytedance/seedance/v1.5/pro/image-to-video"
 
 
